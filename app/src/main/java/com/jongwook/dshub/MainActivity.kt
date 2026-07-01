@@ -1,6 +1,8 @@
 package com.jongwook.dshub
 
 import android.os.Bundle
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -40,8 +42,13 @@ class MainActivity : ComponentActivity() {
                 credential.selectedAccount = account.account
                 viewModel.initRepository(SheetsRepository(this, credential))
             } catch (e: ApiException) {
+                val msg = "로그인 실패 (코드 ${e.statusCode}): ${e.message}"
+                Log.e("DSHub", msg, e)
+                Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
                 viewModel.clearRepository()
             }
+        } else {
+            Log.w("DSHub", "Sign-in cancelled or failed, resultCode=${result.resultCode}")
         }
     }
 
