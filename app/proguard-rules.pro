@@ -1,0 +1,7 @@
+-keep class com.google.api.** { *; }
+-keep class com.google.apis.** { *; }
+-keep class com.google.gson.** { *; }
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.api.**
+-dontwarn org.apache.http.**
+-dontwarn android.net.http.**
