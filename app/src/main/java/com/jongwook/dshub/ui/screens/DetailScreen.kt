@@ -123,7 +123,20 @@ fun DetailScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("진행 상태", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (entry.sequenceNumber > 0) {
+                                Text(
+                                    text = "No. ${entry.sequenceNumber}",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Text("진행 상태", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                         StageBadge(stage = stage)
                     }
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))

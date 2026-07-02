@@ -120,8 +120,9 @@ class SheetsRepository(
             }
         }
 
+        val seqNum = targetRow - 3   // 행 4 → 순번 1, 행 5 → 순번 2 …
         val range = "$sheetName!A${targetRow}:K${targetRow}"
-        val body = ValueRange().setValues(listOf(entry.toRowValues()))
+        val body = ValueRange().setValues(listOf(entry.toRowValues(seqNum)))
         sheetsService.spreadsheets().values()
             .update(spreadsheetId, range, body)
             .setValueInputOption("USER_ENTERED")
@@ -137,7 +138,7 @@ class SheetsRepository(
         entry: TechSupport
     ) = withContext(Dispatchers.IO) {
         val range = "$sheetName!A${entry.rowIndex}:K${entry.rowIndex}"
-        val body = ValueRange().setValues(listOf(entry.toRowValues()))
+        val body = ValueRange().setValues(listOf(entry.toRowValues(entry.sequenceNumber)))
         sheetsService.spreadsheets().values()
             .update(spreadsheetId, range, body)
             .setValueInputOption("USER_ENTERED")
@@ -173,7 +174,7 @@ class SheetsRepository(
         val categoryColor = Category.fromDisplayName(entry.category).sheetColorHex.toSheetsColor()
 
         val requests = listOf(
-            colorCellRequest(sheetId, zeroRow, colIndex = 1, color = stageColor),    // B열 = 진행단계
+            colorCellRequest(sheetId, zeroRow, colIndex = 2, color = stageColor),    // C열 = 진행단계
             colorCellRequest(sheetId, zeroRow, colIndex = 5, color = categoryColor)  // F열 = 구분
         )
 
