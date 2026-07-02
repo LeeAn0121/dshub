@@ -14,27 +14,37 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "ds
 class PreferencesRepository(private val context: Context) {
 
     companion object {
-        val SPREADSHEET_ID_KEY = stringPreferencesKey("spreadsheet_id")
-        val SHEET_NAME_KEY = stringPreferencesKey("sheet_name")
+        val SPREADSHEET_ID_KEY   = stringPreferencesKey("spreadsheet_id")
+        val SHEET_NAME_KEY       = stringPreferencesKey("sheet_name")
+        val ACCOUNT_EMAIL_KEY    = stringPreferencesKey("account_email")
+        val ACCOUNT_NAME_KEY     = stringPreferencesKey("account_display_name")
+        val SPREADSHEET_NAME_KEY = stringPreferencesKey("spreadsheet_name")
     }
 
-    val spreadsheetId: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[SPREADSHEET_ID_KEY] ?: ""
-    }
+    val spreadsheetId: Flow<String>      = context.dataStore.data.map { it[SPREADSHEET_ID_KEY]   ?: "" }
+    val sheetName: Flow<String>          = context.dataStore.data.map { it[SHEET_NAME_KEY]        ?: "" }
+    val accountEmail: Flow<String>       = context.dataStore.data.map { it[ACCOUNT_EMAIL_KEY]     ?: "" }
+    val accountDisplayName: Flow<String> = context.dataStore.data.map { it[ACCOUNT_NAME_KEY]      ?: "" }
+    val spreadsheetName: Flow<String>    = context.dataStore.data.map { it[SPREADSHEET_NAME_KEY]  ?: "" }
 
-    val sheetName: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[SHEET_NAME_KEY] ?: "기술지원"
-    }
+    suspend fun saveSpreadsheetId(id: String) =
+        context.dataStore.edit { it[SPREADSHEET_ID_KEY] = id }
 
-    suspend fun saveSpreadsheetId(id: String) {
-        context.dataStore.edit { prefs ->
-            prefs[SPREADSHEET_ID_KEY] = id
+    suspend fun saveSheetName(name: String) =
+        context.dataStore.edit { it[SHEET_NAME_KEY] = name }
+
+    suspend fun saveAccount(email: String, displayName: String) =
+        context.dataStore.edit {
+            it[ACCOUNT_EMAIL_KEY] = email
+            it[ACCOUNT_NAME_KEY]  = displayName
         }
-    }
 
-    suspend fun saveSheetName(name: String) {
-        context.dataStore.edit { prefs ->
-            prefs[SHEET_NAME_KEY] = name
+    suspend fun saveSpreadsheetName(name: String) =
+        context.dataStore.edit { it[SPREADSHEET_NAME_KEY] = name }
+
+    suspend fun clearAccount() =
+        context.dataStore.edit {
+            it.remove(ACCOUNT_EMAIL_KEY)
+            it.remove(ACCOUNT_NAME_KEY)
         }
-    }
 }

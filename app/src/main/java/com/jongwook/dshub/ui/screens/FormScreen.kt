@@ -78,6 +78,7 @@ fun FormScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val error by viewModel.error.collectAsState()
+    var submitted by remember { mutableStateOf(false) }   // 제출 시도 여부 (필수값 표시 트리거)
 
     LaunchedEffect(error) {
         error?.let {
@@ -201,9 +202,13 @@ fun FormScreen(
                 OutlinedTextField(
                     value = siteName,
                     onValueChange = { siteName = it },
-                    label = { Text("현장명") },
+                    label = { RequiredLabel("현장명") },
                     modifier = Modifier.weight(1f),
-                    singleLine = true
+                    singleLine = true,
+                    isError = submitted && siteName.isBlank(),
+                    supportingText = if (submitted && siteName.isBlank()) {
+                        { Text("현장명은 필수 입력 항목입니다.", color = MaterialTheme.colorScheme.error, fontSize = 11.sp) }
+                    } else null
                 )
                 if (siteName.isNotBlank()) {
                     IconButton(
@@ -264,11 +269,15 @@ fun FormScreen(
             OutlinedTextField(
                 value = requestDetails,
                 onValueChange = { requestDetails = it },
-                label = { Text("요청사항") },
+                label = { RequiredLabel("요청사항") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(120.dp),
-                maxLines = 5
+                maxLines = 5,
+                isError = submitted && requestDetails.isBlank(),
+                supportingText = if (submitted && requestDetails.isBlank()) {
+                    { Text("요청사항은 필수 입력 항목입니다.", color = MaterialTheme.colorScheme.error, fontSize = 11.sp) }
+                } else null
             )
 
             OutlinedTextField(
@@ -295,19 +304,24 @@ fun FormScreen(
 
             Button(
                 onClick = {
+                    submitted = true
+                    if (siteName.isBlank() || requestDetails.isBlank()) {
+                        return@Button
+                    }
                     val entry = TechSupport(
-                        rowIndex = initialEntry?.rowIndex ?: -1,
+                        rowIndex         = initialEntry?.rowIndex ?: -1,
+                        sequenceNumber   = initialEntry?.sequenceNumber ?: -1,
                         registrationDate = registrationDate,
-                        stage = stage,
-                        requestDate = requestDate,
-                        scheduledDate = scheduledDate,
-                        completionDate = completionDate,
-                        category = category,
-                        siteName = siteName,
-                        assignee = assignee,
-                        requestDetails = requestDetails,
-                        processDetails = processDetails,
-                        notes = notes
+                        stage            = stage,
+                        requestDate      = requestDate,
+                        scheduledDate    = scheduledDate,
+                        completionDate   = completionDate,
+                        category         = category,
+                        siteName         = siteName,
+                        assignee         = assignee,
+                        requestDetails   = requestDetails,
+                        processDetails   = processDetails,
+                        notes            = notes
                     )
                     if (isEdit) {
                         viewModel.updateEntry(entry) { onNavigateBack() }
@@ -328,6 +342,21 @@ fun FormScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
+}
+
+@Composable
+fun RequiredLabel(text: String) {
+    androidx.compose.foundation.text.BasicText(
+        text = androidx.compose.ui.text.buildAnnotatedString {
+            append(text)
+            pushStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.error))
+            append(" *")
+            pop()
+        },
+        style = MaterialTheme.typography.bodyMedium.copy(
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    )
 }
 
 @Composable
