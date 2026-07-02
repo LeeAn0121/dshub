@@ -1,4 +1,0 @@
-#Wed Jul 01 23:46:15 KST 2026
-base.0=/Users/junjonguk/Desktop/GITHUB/DSHub/app/build/intermediates/dex/release/minifyReleaseWithR8/classes.dex
-path.0=classes.dex
-renamed.0=classes.dex
