@@ -125,37 +125,20 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun attemptAutoLogin() {
-        // 1단계: Google Sign-In 무음 로그인 시도
-        googleSignInClient.silentSignIn().addOnCompleteListener(this) { task ->
-            if (task.isSuccessful) {
-                val account = task.result
-                Log.d("DSHub", "Silent sign-in OK: ${account?.email}")
-                credential.selectedAccount = account?.account
-                viewModel.initRepository(SheetsRepository(this, credential))
-                lifecycleScope.launch {
-                    viewModel.prefsRepo.saveAccount(
-                        email       = account?.email ?: "",
-                        displayName = account?.displayName ?: ""
-                    )
-                }
-            } else {
-                // 2단계: DataStore에 저장된 이메일로 AccountManager에서 계정 복원
-                lifecycleScope.launch {
-                    val savedEmail = viewModel.prefsRepo.accountEmail.first()
-                    val restored = tryRestoreFromAccountManager(savedEmail)
-                    if (!restored) {
-                        // 3단계: GoogleSignIn 캐시 확인
-                        val last = GoogleSignIn.getLastSignedInAccount(this@MainActivity)
-                        if (last != null) {
-                            Log.d("DSHub", "Restored from getLastSignedInAccount: ${last.email}")
-                            credential.selectedAccount = last.account
-                            viewModel.initRepository(SheetsRepository(this@MainActivity, credential))
-                        } else {
-                            Log.d("DSHub", "Auto-login failed — show sign-in screen")
-                            viewModel.setAuthCheckDone()
-                        }
-                    }
-                }
+        // 1단계: GoogleSignIn 로컬 캐시 확인 (일반 재시작 시 가장 빠르고 신뢰성 높음)
+        val last = GoogleSignIn.getLastSignedInAccount(this)
+        if (last != null) {
+            Log.d("DSHub", "Auto-login via cached account: ${last.email}")
+            credential.selectedAccount = last.account
+            viewModel.initRepository(SheetsRepository(this, credential))
+            return
+        }
+        // 2단계: DataStore 저장 이메일 + AccountManager 로 복원
+        lifecycleScope.launch {
+            val savedEmail = viewModel.prefsRepo.accountEmail.first()
+            if (!tryRestoreFromAccountManager(savedEmail)) {
+                Log.d("DSHub", "Auto-login failed — show sign-in screen")
+                viewModel.setAuthCheckDone()
             }
         }
     }
