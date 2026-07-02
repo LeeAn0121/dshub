@@ -43,30 +43,26 @@ class MainActivity : ComponentActivity() {
     private val signInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == RESULT_OK) {
-            try {
-                val account = GoogleSignIn
-                    .getSignedInAccountFromIntent(result.data)
-                    .getResult(ApiException::class.java)
-                credential.selectedAccount = account.account
-                viewModel.initRepository(SheetsRepository(this, credential))
-                // 계정 정보 로컬 저장
-                lifecycleScope.launch {
-                    viewModel.prefsRepo.saveAccount(
-                        email       = account.email ?: "",
-                        displayName = account.displayName ?: ""
-                    )
-                }
-            } catch (e: ApiException) {
-                val msg = "로그인 실패 (코드 ${e.statusCode}): ${e.message}"
-                Log.e("DSHub", msg, e)
-                Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
-                viewModel.clearRepository()
-                viewModel.setAuthCheckDone()
+        try {
+            val account = GoogleSignIn
+                .getSignedInAccountFromIntent(result.data)
+                .getResult(ApiException::class.java)
+            val androidAccount = account.account
+            if (androidAccount == null) {
+                showSignInError("선택한 Google 계정 정보를 가져오지 못했습니다.")
+                return@registerForActivityResult
             }
-        } else {
-            Log.w("DSHub", "Sign-in cancelled, resultCode=${result.resultCode}")
-            viewModel.setAuthCheckDone()
+
+            credential.selectedAccount = androidAccount
+            viewModel.initRepository(SheetsRepository(this, credential))
+            lifecycleScope.launch {
+                viewModel.prefsRepo.saveAccount(
+                    email       = account.email ?: androidAccount.name,
+                    displayName = account.displayName ?: ""
+                )
+            }
+        } catch (e: ApiException) {
+            showSignInError("로그인 실패 (코드 ${e.statusCode}): ${e.statusMessage ?: e.message}", e)
         }
     }
 
@@ -78,7 +74,10 @@ class MainActivity : ComponentActivity() {
 
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
-            .requestScopes(Scope(SheetsScopes.SPREADSHEETS))
+            .requestScopes(
+                Scope(requiredScopes.first()),
+                *requiredScopes.drop(1).map(::Scope).toTypedArray()
+            )
             .build()
 
         googleSignInClient = GoogleSignIn.getClient(this, gso)
@@ -105,6 +104,7 @@ class MainActivity : ComponentActivity() {
                         MainNavGraph(
                             viewModel = viewModel,
                             onSignOut = {
+                                credential.selectedAccount = null
                                 googleSignInClient.signOut().addOnCompleteListener {
                                     lifecycleScope.launch {
                                         viewModel.prefsRepo.clearAccount()
@@ -154,5 +154,16 @@ class MainActivity : ComponentActivity() {
             viewModel.initRepository(SheetsRepository(this, credential))
             true
         } else false
+    }
+
+    private fun showSignInError(message: String, error: Throwable? = null) {
+        if (error == null) {
+            Log.e("DSHub", message)
+        } else {
+            Log.e("DSHub", message, error)
+        }
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        viewModel.clearRepository()
+        viewModel.setAuthCheckDone()
     }
 }

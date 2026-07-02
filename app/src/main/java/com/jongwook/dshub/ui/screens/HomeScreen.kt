@@ -1,6 +1,7 @@
 package com.jongwook.dshub.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -125,8 +126,7 @@ fun HomeScreen(
                             "DSHub",
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 21.sp,
-                            color = Color.White,
-                            letterSpacing = 0.5.sp
+                            color = MaterialTheme.colorScheme.primary
                         )
                         if (allEntries.isNotEmpty()) {
                             val shown = entries.size
@@ -134,14 +134,14 @@ fun HomeScreen(
                             Text(
                                 text = if (filter.hasAnyFilter) "${shown}/${total}건 표시" else "총 ${total}건",
                                 fontSize = 11.sp,
-                                color = Color.White.copy(alpha = 0.75f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    actionIconContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    actionIconContentColor = MaterialTheme.colorScheme.primary
                 ),
                 actions = {
                     IconButton(onClick = { viewModel.loadEntries() }) {
@@ -190,7 +190,7 @@ fun HomeScreen(
                 onValueChange = { q -> viewModel.updateFilter { copy(query = q) } },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 placeholder = {
                     Text(
                         "현장명, 담당, 요청사항 검색",
@@ -213,10 +213,10 @@ fun HomeScreen(
                     }
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                    unfocusedBorderColor = Color.Transparent,
                     unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                     focusedContainerColor = MaterialTheme.colorScheme.surface
                 )
@@ -315,7 +315,7 @@ fun HomeScreen(
                     contentPadding = PaddingValues(
                         start = 16.dp, end = 16.dp, top = 12.dp, bottom = 88.dp
                     ),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(entries, key = { it.rowIndex }) { entry ->
                         TechSupportCard(entry = entry, onClick = { onNavigateToDetail(entry) })
@@ -472,10 +472,11 @@ fun TechSupportCard(entry: TechSupport, onClick: () -> Unit) {
             .clip(MaterialTheme.shapes.medium)
             .clickable(onClick = onClick),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp,
-            pressedElevation = 6.dp
+            defaultElevation = 0.dp,
+            pressedElevation = 1.dp
         ),
-        shape = MaterialTheme.shapes.medium,
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f)),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(modifier = Modifier.height(IntrinsicSize.Min)) {
@@ -490,7 +491,6 @@ fun TechSupportCard(entry: TechSupport, onClick: () -> Unit) {
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .background(stage.color.copy(alpha = 0.03f))
                     .padding(horizontal = 14.dp, vertical = 13.dp)
             ) {
                 // Title row
@@ -507,7 +507,7 @@ fun TechSupportCard(entry: TechSupport, onClick: () -> Unit) {
                         if (entry.sequenceNumber > 0) {
                             Surface(
                                 color = MaterialTheme.colorScheme.surfaceVariant,
-                                shape = RoundedCornerShape(4.dp)
+                                shape = RoundedCornerShape(6.dp)
                             ) {
                                 Text(
                                     "#${entry.sequenceNumber}",
@@ -530,7 +530,7 @@ fun TechSupportCard(entry: TechSupport, onClick: () -> Unit) {
                     StageBadge(stage = stage)
                 }
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(9.dp))
 
                 // Meta row
                 Row(
@@ -571,12 +571,12 @@ fun TechSupportCard(entry: TechSupport, onClick: () -> Unit) {
 
                 // Request details
                 if (entry.requestDetails.isNotBlank()) {
-                    Spacer(Modifier.height(9.dp))
+                    Spacer(Modifier.height(10.dp))
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                         thickness = 0.5.dp
                     )
-                    Spacer(Modifier.height(9.dp))
+                    Spacer(Modifier.height(10.dp))
                     Text(
                         text = entry.requestDetails,
                         fontSize = 13.sp,

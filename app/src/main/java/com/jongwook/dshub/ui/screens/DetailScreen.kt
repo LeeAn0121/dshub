@@ -2,6 +2,7 @@ package com.jongwook.dshub.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -64,12 +65,15 @@ fun DetailScreen(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("항목 삭제") },
-            text = { Text("이 기술지원 내역을 삭제하시겠습니까?\n(구글 시트에서 해당 행이 비워집니다)") },
+            text = { Text("이 기술지원 내역을 삭제하시겠습니까?\n(구글 시트에서 해당 행이 삭제됩니다)") },
             confirmButton = {
                 TextButton(
                     onClick = {
                         showDeleteDialog = false
-                        viewModel.deleteEntry(entry.rowIndex) { onNavigateBack() }
+                        viewModel.deleteEntry(entry.rowIndex) {
+                            Toast.makeText(context, "삭제 완료", Toast.LENGTH_SHORT).show()
+                            onNavigateBack()
+                        }
                     }
                 ) { Text("삭제", color = MaterialTheme.colorScheme.error) }
             },
@@ -89,10 +93,10 @@ fun DetailScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White,
-                    actionIconContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.primary,
+                    actionIconContentColor = MaterialTheme.colorScheme.primary
                 ),
                 actions = {
                     IconButton(onClick = { onNavigateToEdit(entry) }) {

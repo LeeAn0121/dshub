@@ -2,6 +2,7 @@ package com.jongwook.dshub.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.unit.sp
@@ -144,9 +145,9 @@ fun FormScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.primary
                 )
             )
         },
@@ -324,9 +325,15 @@ fun FormScreen(
                         notes            = notes
                     )
                     if (isEdit) {
-                        viewModel.updateEntry(entry) { onNavigateBack() }
+                        viewModel.updateEntry(entry) {
+                            Toast.makeText(context, "수정 완료", Toast.LENGTH_SHORT).show()
+                            onNavigateBack()
+                        }
                     } else {
-                        viewModel.addEntry(entry) { onNavigateBack() }
+                        viewModel.addEntry(entry) {
+                            Toast.makeText(context, "등록 완료", Toast.LENGTH_SHORT).show()
+                            onNavigateBack()
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxWidth()

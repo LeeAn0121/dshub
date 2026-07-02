@@ -205,6 +205,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _isLoadingSheets = MutableStateFlow(false)
     val isLoadingSheets: StateFlow<Boolean> = _isLoadingSheets.asStateFlow()
 
+    fun loadSpreadsheetInfo(spreadsheetId: String) {
+        val repo = sheetsRepo ?: return
+        viewModelScope.launch {
+            _isLoadingSheets.value = true
+            try {
+                val (title, tabs) = repo.getSpreadsheetInfo(spreadsheetId)
+                _sheetTabs.value = tabs
+                prefsRepo.saveSpreadsheetName(title)
+                _error.value = null
+            } catch (e: Exception) {
+                _error.value = "스프레드시트 정보 로드 실패: ${e.message}"
+            } finally {
+                _isLoadingSheets.value = false
+            }
+        }
+    }
+
     fun loadSpreadsheets() {
         val repo = sheetsRepo ?: return
         viewModelScope.launch {

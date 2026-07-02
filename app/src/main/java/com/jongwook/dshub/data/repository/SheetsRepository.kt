@@ -1,8 +1,6 @@
 package com.jongwook.dshub.data.repository
 
 import android.content.Context
-import com.jongwook.dshub.data.model.Category
-import com.jongwook.dshub.data.model.Stage
 import com.jongwook.dshub.data.model.TechSupport
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.http.javanet.NetHttpTransport
@@ -10,12 +8,18 @@ import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.drive.Drive
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.BatchUpdateSpreadsheetRequest
+import com.google.api.services.sheets.v4.model.Border
+import com.google.api.services.sheets.v4.model.Borders
 import com.google.api.services.sheets.v4.model.CellData
 import com.google.api.services.sheets.v4.model.CellFormat
 import com.google.api.services.sheets.v4.model.Color
+import com.google.api.services.sheets.v4.model.CopyPasteRequest
+import com.google.api.services.sheets.v4.model.DeleteDimensionRequest
+import com.google.api.services.sheets.v4.model.DimensionRange
 import com.google.api.services.sheets.v4.model.GridRange
 import com.google.api.services.sheets.v4.model.RepeatCellRequest
 import com.google.api.services.sheets.v4.model.Request
+import com.google.api.services.sheets.v4.model.UpdateBordersRequest
 import com.google.api.services.sheets.v4.model.ValueRange
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -48,6 +52,17 @@ class SheetsRepository(
             .execute()
         result.files?.map { SpreadsheetItem(it.id, it.name) } ?: emptyList()
     }
+
+    suspend fun getSpreadsheetInfo(spreadsheetId: String): Pair<String, List<String>> =
+        withContext(Dispatchers.IO) {
+            val response = sheetsService.spreadsheets()
+                .get(spreadsheetId)
+                .setFields("properties.title,sheets.properties.title")
+                .execute()
+            val title = response.properties?.title ?: ""
+            val tabs  = response.sheets?.map { it.properties.title } ?: emptyList()
+            Pair(title, tabs)
+        }
 
     suspend fun listSheetTabs(spreadsheetId: String): List<String> = withContext(Dispatchers.IO) {
         val response = sheetsService.spreadsheets()
@@ -121,6 +136,9 @@ class SheetsRepository(
         }
 
         val seqNum = targetRow - 3   // 행 4 → 순번 1, 행 5 → 순번 2 …
+        val sheetId = getSheetId(spreadsheetId, sheetName)
+        copyRowFormatting(spreadsheetId, sheetId, targetRow)
+
         val range = "$sheetName!A${targetRow}:K${targetRow}"
         val body = ValueRange().setValues(listOf(entry.toRowValues(seqNum)))
         sheetsService.spreadsheets().values()
@@ -128,8 +146,7 @@ class SheetsRepository(
             .setValueInputOption("USER_ENTERED")
             .execute()
 
-        val sheetId = getSheetId(spreadsheetId, sheetName)
-        applyRowColors(spreadsheetId, sheetId, targetRow, entry)
+        applyTableBorders(spreadsheetId, sheetId, lastRow = targetRow)
     }
 
     suspend fun updateEntry(
@@ -145,7 +162,7 @@ class SheetsRepository(
             .execute()
 
         val sheetId = getSheetId(spreadsheetId, sheetName)
-        applyRowColors(spreadsheetId, sheetId, entry.rowIndex, entry)
+        applyTableBorders(spreadsheetId, sheetId, lastRow = getLastTableRow(spreadsheetId, sheetName))
     }
 
     suspend fun deleteEntry(
@@ -153,29 +170,60 @@ class SheetsRepository(
         sheetName: String,
         rowIndex: Int
     ) = withContext(Dispatchers.IO) {
-        val range = "$sheetName!A${rowIndex}:K${rowIndex}"
-        val body = ValueRange().setValues(listOf(List(11) { "" }))
-        sheetsService.spreadsheets().values()
-            .update(spreadsheetId, range, body)
-            .setValueInputOption("RAW")
+        val sheetId = getSheetId(spreadsheetId, sheetName)
+        val zeroRow = rowIndex - 1
+        val request = Request().setDeleteDimension(
+            DeleteDimensionRequest().setRange(
+                DimensionRange()
+                    .setSheetId(sheetId)
+                    .setDimension("ROWS")
+                    .setStartIndex(zeroRow)
+                    .setEndIndex(zeroRow + 1)
+            )
+        )
+
+        sheetsService.spreadsheets()
+            .batchUpdate(spreadsheetId, BatchUpdateSpreadsheetRequest().setRequests(listOf(request)))
             .execute()
+
+        renumberEntries(spreadsheetId, sheetName)
+        applyTableBorders(spreadsheetId, sheetId, lastRow = getLastTableRow(spreadsheetId, sheetName))
     }
 
-    // ── 셀 배경색 적용 (진행단계 B열, 구분 F열) ──────────────────────────────
-    private suspend fun applyRowColors(
-        spreadsheetId: String,
-        sheetId: Int,
-        rowIndex: Int,           // 1-based (Google Sheets 행 번호)
-        entry: TechSupport
-    ) = withContext(Dispatchers.IO) {
-        val zeroRow = rowIndex - 1   // batchUpdate는 0-based
+    // ── 신규 행은 기존 시트 행의 서식/데이터 유효성을 그대로 복사 ────────
+    private fun copyRowFormatting(spreadsheetId: String, sheetId: Int, targetRow: Int) {
+        if (targetRow <= 4) return
 
-        val stageColor = Stage.fromDisplayName(entry.stage).sheetColorHex.toSheetsColor()
-        val categoryColor = Category.fromDisplayName(entry.category).sheetColorHex.toSheetsColor()
+        val sourceZeroRow = targetRow - 2
+        val targetZeroRow = targetRow - 1
+        val source = GridRange()
+            .setSheetId(sheetId)
+            .setStartRowIndex(sourceZeroRow)
+            .setEndRowIndex(sourceZeroRow + 1)
+            .setStartColumnIndex(0)
+            .setEndColumnIndex(11)
+        val destination = GridRange()
+            .setSheetId(sheetId)
+            .setStartRowIndex(targetZeroRow)
+            .setEndRowIndex(targetZeroRow + 1)
+            .setStartColumnIndex(0)
+            .setEndColumnIndex(11)
 
         val requests = listOf(
-            colorCellRequest(sheetId, zeroRow, colIndex = 2, color = stageColor),    // C열 = 진행단계
-            colorCellRequest(sheetId, zeroRow, colIndex = 5, color = categoryColor)  // F열 = 구분
+            Request().setCopyPaste(
+                CopyPasteRequest()
+                    .setSource(source)
+                    .setDestination(destination)
+                    .setPasteType("PASTE_FORMAT")
+                    .setPasteOrientation("NORMAL")
+            ),
+            Request().setCopyPaste(
+                CopyPasteRequest()
+                    .setSource(source)
+                    .setDestination(destination)
+                    .setPasteType("PASTE_DATA_VALIDATION")
+                    .setPasteOrientation("NORMAL")
+            )
         )
 
         sheetsService.spreadsheets()
@@ -183,34 +231,76 @@ class SheetsRepository(
             .execute()
     }
 
-    private fun colorCellRequest(
-        sheetId: Int,
-        zeroRow: Int,
-        colIndex: Int,
-        color: Color
-    ): Request = Request().setRepeatCell(
-        RepeatCellRequest()
-            .setRange(
-                GridRange()
-                    .setSheetId(sheetId)
-                    .setStartRowIndex(zeroRow)
-                    .setEndRowIndex(zeroRow + 1)
-                    .setStartColumnIndex(colIndex)
-                    .setEndColumnIndex(colIndex + 1)
-            )
-            .setCell(
-                CellData().setUserEnteredFormat(
-                    CellFormat().setBackgroundColor(color)
-                )
-            )
-            .setFields("userEnteredFormat.backgroundColor")
-    )
+    private suspend fun renumberEntries(spreadsheetId: String, sheetName: String) {
+        val colA = sheetsService.spreadsheets().values()
+            .get(spreadsheetId, "$sheetName!A4:A")
+            .execute()
+            .getValues()
+            ?: return
 
-    // Long ARGB → Google Sheets Color (R/G/B 0.0~1.0)
-    private fun Long.toSheetsColor(): Color {
-        val r = ((this shr 16) and 0xFF) / 255f
-        val g = ((this shr 8) and 0xFF) / 255f
-        val b = (this and 0xFF) / 255f
-        return Color().setRed(r).setGreen(g).setBlue(b)
+        if (colA.isEmpty()) return
+
+        val body = ValueRange().setValues((1..colA.size).map { listOf(it) })
+        sheetsService.spreadsheets().values()
+            .update(spreadsheetId, "$sheetName!A4:A${colA.size + 3}", body)
+            .setValueInputOption("RAW")
+            .execute()
+    }
+
+    private suspend fun getLastTableRow(spreadsheetId: String, sheetName: String): Int {
+        val rows = sheetsService.spreadsheets().values()
+            .get(spreadsheetId, "$sheetName!A4:K")
+            .execute()
+            .getValues()
+            ?: return 3
+
+        val lastDataIndex = rows.indexOfLast { row ->
+            row.any { cell -> cell?.toString()?.isNotBlank() == true }
+        }
+        return if (lastDataIndex == -1) 3 else lastDataIndex + 4
+    }
+
+    private fun applyTableBorders(spreadsheetId: String, sheetId: Int, lastRow: Int) {
+        if (lastRow < 3) return
+
+        val border = Border()
+            .setStyle("SOLID")
+            .setWidth(1)
+            .setColor(Color().setRed(0.55f).setGreen(0.59f).setBlue(0.65f))
+        val borders = Borders()
+            .setTop(border)
+            .setBottom(border)
+            .setLeft(border)
+            .setRight(border)
+
+        val range = GridRange()
+            .setSheetId(sheetId)
+            .setStartRowIndex(2)      // row 3, header
+            .setEndRowIndex(lastRow)  // exclusive; lastRow is 1-based
+            .setStartColumnIndex(0)
+            .setEndColumnIndex(11)
+
+        val requests = listOf(
+            Request().setUpdateBorders(
+                UpdateBordersRequest()
+                    .setRange(range)
+                    .setTop(border)
+                    .setBottom(border)
+                    .setLeft(border)
+                    .setRight(border)
+                    .setInnerVertical(border)
+                    .setInnerHorizontal(border)
+            ),
+            Request().setRepeatCell(
+                RepeatCellRequest()
+                    .setRange(range)
+                .setCell(CellData().setUserEnteredFormat(CellFormat().setBorders(borders)))
+                .setFields("userEnteredFormat.borders")
+            )
+        )
+
+        sheetsService.spreadsheets()
+            .batchUpdate(spreadsheetId, BatchUpdateSpreadsheetRequest().setRequests(requests))
+            .execute()
     }
 }
