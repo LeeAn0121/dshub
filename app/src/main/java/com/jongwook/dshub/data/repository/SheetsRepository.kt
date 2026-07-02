@@ -100,23 +100,35 @@ class SheetsRepository(
         sheetName: String,
         entry: TechSupport
     ) = withContext(Dispatchers.IO) {
+        // A4부터 A열 전체를 읽어 첫 번째 빈 행 위치 결정
+        val colA = sheetsService.spreadsheets().values()
+            .get(spreadsheetId, "$sheetName!A4:A")
+            .execute()
+            .getValues()   // null = 데이터 없음
+
+        val targetRow: Int = if (colA == null) {
+            4  // 시트가 완전히 비어있으면 4행부터
+        } else {
+            val emptyIdx = colA.indexOfFirst { row ->
+                row.isEmpty() || row.getOrNull(0)?.toString().isNullOrBlank()
+            }
+            if (emptyIdx == -1) {
+                // 빈 행 없음 → 마지막 데이터 다음 행
+                4 + colA.size
+            } else {
+                4 + emptyIdx
+            }
+        }
+
+        val range = "$sheetName!A${targetRow}:K${targetRow}"
         val body = ValueRange().setValues(listOf(entry.toRowValues()))
-        val response = sheetsService.spreadsheets().values()
-            .append(spreadsheetId, "$sheetName!A:K", body)
+        sheetsService.spreadsheets().values()
+            .update(spreadsheetId, range, body)
             .setValueInputOption("USER_ENTERED")
-            .setInsertDataOption("INSERT_ROWS")
             .execute()
 
-        // 추가된 행 번호 파싱 후 셀 색상 적용
-        val updatedRange = response.updates?.updatedRange ?: return@withContext
-        // 형식: 'SheetName'!A5:K5 → "5" 추출
-        val rowIndex = updatedRange
-            .substringAfter("!A")
-            .substringBefore(":")
-            .toIntOrNull() ?: return@withContext
-
         val sheetId = getSheetId(spreadsheetId, sheetName)
-        applyRowColors(spreadsheetId, sheetId, rowIndex, entry)
+        applyRowColors(spreadsheetId, sheetId, targetRow, entry)
     }
 
     suspend fun updateEntry(
