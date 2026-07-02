@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import com.jongwook.dshub.data.model.Category
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -316,28 +317,52 @@ fun StageBadge(stage: Stage) {
         color = stage.color.copy(alpha = 0.15f),
         shape = MaterialTheme.shapes.extraSmall
     ) {
-        Text(
-            text = stage.displayName,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = stage.color,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Icon(
+                imageVector = stage.icon,
+                contentDescription = null,
+                tint = stage.color,
+                modifier = Modifier.size(12.dp)
+            )
+            Text(
+                text = stage.displayName,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = stage.color
+            )
+        }
     }
 }
 
 @Composable
 fun InfoChip(label: String) {
     if (label.isBlank()) return
+    val category = Category.fromDisplayName(label)
     Surface(
-        color = MaterialTheme.colorScheme.secondaryContainer,
+        color = category.color.copy(alpha = 0.12f),
         shape = MaterialTheme.shapes.extraSmall
     ) {
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Icon(
+                imageVector = category.icon,
+                contentDescription = null,
+                tint = category.color,
+                modifier = Modifier.size(11.dp)
+            )
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = category.color
+            )
+        }
     }
 }

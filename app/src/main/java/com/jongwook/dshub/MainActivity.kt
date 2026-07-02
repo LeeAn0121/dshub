@@ -58,9 +58,10 @@ class MainActivity : ComponentActivity() {
 
         val requiredScopes = listOf(SheetsScopes.SPREADSHEETS, DriveScopes.DRIVE_METADATA_READONLY)
 
+        // Drive 스코프는 GoogleSignInOptions에서 제외 — GoogleAccountCredential이 API 호출 시 별도 처리
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
-            .requestScopes(Scope(SheetsScopes.SPREADSHEETS), Scope(DriveScopes.DRIVE_METADATA_READONLY))
+            .requestScopes(Scope(SheetsScopes.SPREADSHEETS))
             .build()
 
         googleSignInClient = GoogleSignIn.getClient(this, gso)

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -42,6 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.jongwook.dshub.data.model.Category
 import com.jongwook.dshub.data.model.Stage
 import com.jongwook.dshub.data.model.TechSupport
 import com.jongwook.dshub.ui.viewmodel.MainViewModel
@@ -132,7 +134,26 @@ fun DetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("구분", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        InfoChip(label = entry.category)
+                        val cat = Category.fromDisplayName(entry.category)
+                        androidx.compose.material3.Surface(
+                            color = cat.color.copy(alpha = 0.15f),
+                            shape = MaterialTheme.shapes.extraSmall
+                        ) {
+                            androidx.compose.foundation.layout.Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = cat.icon,
+                                    contentDescription = null,
+                                    tint = cat.color,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(cat.displayName, fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium, color = cat.color)
+                            }
+                        }
                     }
                 }
             }

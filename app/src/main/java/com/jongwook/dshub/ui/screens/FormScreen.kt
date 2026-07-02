@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -35,6 +36,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -51,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -171,18 +174,18 @@ fun FormScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Box(modifier = Modifier.weight(1f)) {
-                    DSDropdownField(
+                    DSIconDropdownField(
                         label = "진행단계",
                         value = stage,
-                        options = Stage.displayNames(),
+                        options = Stage.entries.map { Triple(it.displayName, it.icon, it.color) },
                         onSelect = { stage = it }
                     )
                 }
                 Box(modifier = Modifier.weight(1f)) {
-                    DSDropdownField(
+                    DSIconDropdownField(
                         label = "구분",
                         value = category,
-                        options = Category.displayNames(),
+                        options = Category.entries.map { Triple(it.displayName, it.icon, it.color) },
                         onSelect = { category = it }
                     )
                 }
@@ -389,6 +392,84 @@ fun DSDropdownField(
                 DropdownMenuItem(
                     text = { Text(option) },
                     onClick = { onSelect(option); expanded = false }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DSIconDropdownField(
+    label: String,
+    value: String,
+    options: List<Triple<String, ImageVector, androidx.compose.ui.graphics.Color>>,
+    onSelect: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selected = options.find { it.first == value }
+
+    Box {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            label = { Text(label) },
+            modifier = Modifier.fillMaxWidth(),
+            readOnly = true,
+            leadingIcon = selected?.let { (_, icon, color) ->
+                {
+                    Surface(
+                        color = color.copy(alpha = 0.15f),
+                        shape = MaterialTheme.shapes.extraSmall
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = color,
+                            modifier = Modifier
+                                .padding(4.dp)
+                                .size(16.dp)
+                        )
+                    }
+                }
+            },
+            trailingIcon = {
+                Icon(Icons.Default.ArrowDropDown, contentDescription = "선택",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        )
+        Box(modifier = Modifier.matchParentSize().clickable { expanded = true })
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            options.forEach { (name, icon, color) ->
+                DropdownMenuItem(
+                    text = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Surface(
+                                color = color.copy(alpha = 0.15f),
+                                shape = MaterialTheme.shapes.extraSmall
+                            ) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    tint = color,
+                                    modifier = Modifier
+                                        .padding(4.dp)
+                                        .size(16.dp)
+                                )
+                            }
+                            Text(
+                                text = name,
+                                fontWeight = if (name == value) FontWeight.Bold else FontWeight.Normal,
+                                color = if (name == value) color else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    },
+                    onClick = { onSelect(name); expanded = false }
                 )
             }
         }
