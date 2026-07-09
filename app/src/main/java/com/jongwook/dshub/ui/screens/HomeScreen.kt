@@ -44,6 +44,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -56,6 +57,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -66,10 +69,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -102,6 +108,15 @@ fun HomeScreen(
     var showFilterSheet by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val isFabExpanded by remember { derivedStateOf { listState.firstVisibleItemIndex == 0 } }
+
+    // 당겨서 새로고침
+    val pullState = rememberPullToRefreshState()
+    if (pullState.isRefreshing) {
+        LaunchedEffect(Unit) { viewModel.loadEntries() }
+    }
+    LaunchedEffect(isLoading) {
+        if (!isLoading && pullState.isRefreshing) pullState.endRefresh()
+    }
 
     LaunchedEffect(error) {
         error?.let { snackbarHostState.showSnackbar(it); viewModel.clearError() }
@@ -266,61 +281,87 @@ fun HomeScreen(
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
             )
 
-            // 목록
-            if (isLoading) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            } else if (entries.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Surface(
-                            shape = RoundedCornerShape(24.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier.size(80.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Default.Build, null,
-                                    Modifier.size(40.dp),
-                                    tint = MaterialTheme.colorScheme.outline
+            // 목록 (당겨서 새로고침 지원)
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .nestedScroll(pullState.nestedScrollConnection)
+            ) {
+                if (isLoading && allEntries.isEmpty()) {
+                    // 최초 로딩만 전체 스피너
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else if (entries.isEmpty()) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Surface(
+                                shape = RoundedCornerShape(24.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier.size(80.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Default.Build, null,
+                                        Modifier.size(40.dp),
+                                        tint = MaterialTheme.colorScheme.outline
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.height(20.dp))
+                            Text(
+                                text = if (!filter.hasAnyFilter) "등록된 기술지원 내역이 없습니다."
+                                       else "검색 결과가 없습니다.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 16.sp
+                            )
+                            if (!filter.hasAnyFilter) {
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    "'신규 등록' 버튼을 눌러 추가하세요.",
+                                    color = MaterialTheme.colorScheme.outline,
+                                    fontSize = 13.sp
                                 )
+                            } else {
+                                Spacer(Modifier.height(12.dp))
+                                TextButton(onClick = { viewModel.clearFilter() }) { Text("필터 초기화") }
                             }
                         }
-                        Spacer(Modifier.height(20.dp))
-                        Text(
-                            text = if (!filter.hasAnyFilter) "등록된 기술지원 내역이 없습니다."
-                                   else "검색 결과가 없습니다.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 16.sp
-                        )
-                        if (!filter.hasAnyFilter) {
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                "'신규 등록' 버튼을 눌러 추가하세요.",
-                                color = MaterialTheme.colorScheme.outline,
-                                fontSize = 13.sp
-                            )
-                        } else {
-                            Spacer(Modifier.height(12.dp))
-                            TextButton(onClick = { viewModel.clearFilter() }) { Text("필터 초기화") }
+                    }
+                } else {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = 16.dp, end = 16.dp, top = 12.dp, bottom = 88.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(entries, key = { it.rowIndex }) { entry ->
+                            TechSupportCard(entry = entry, onClick = { onNavigateToDetail(entry) })
                         }
                     }
                 }
-            } else {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = 16.dp, end = 16.dp, top = 12.dp, bottom = 88.dp
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(entries, key = { it.rowIndex }) { entry ->
-                        TechSupportCard(entry = entry, onClick = { onNavigateToDetail(entry) })
-                    }
+
+                // 새로고침 버튼/수정 등으로 갱신 중일 때 — 목록은 유지하고 상단 진행바만 표시
+                if (isLoading && allEntries.isNotEmpty() && !pullState.isRefreshing) {
+                    LinearProgressIndicator(
+                        Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.TopCenter)
+                    )
                 }
+
+                PullToRefreshContainer(
+                    state = pullState,
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
             }
         }
     }

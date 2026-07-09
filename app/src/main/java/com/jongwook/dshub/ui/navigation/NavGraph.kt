@@ -1,6 +1,11 @@
 package com.jongwook.dshub.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -22,7 +27,8 @@ sealed class Screen(val route: String) {
 fun MainNavGraph(viewModel: MainViewModel, onSignOut: () -> Unit) {
     val navController = rememberNavController()
 
-    var selectedEntry: TechSupport? = null
+    // remember로 유지해야 재구성(recomposition) 시 선택 항목이 사라지지 않음
+    var selectedEntry by remember { mutableStateOf<TechSupport?>(null) }
 
     NavHost(navController = navController, startDestination = Screen.Home.route) {
         composable(Screen.Home.route) {
@@ -43,7 +49,12 @@ fun MainNavGraph(viewModel: MainViewModel, onSignOut: () -> Unit) {
         }
 
         composable(Screen.Detail.route) {
-            selectedEntry?.let { entry ->
+            // 수정/단계 변경 후 목록이 갱신되면 상세화면도 최신 데이터를 표시
+            val entries by viewModel.entries.collectAsState()
+            val liveEntry = selectedEntry?.let { sel ->
+                entries.find { it.rowIndex == sel.rowIndex } ?: sel
+            }
+            liveEntry?.let { entry ->
                 DetailScreen(
                     entry = entry,
                     viewModel = viewModel,

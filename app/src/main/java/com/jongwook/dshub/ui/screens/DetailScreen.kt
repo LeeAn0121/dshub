@@ -3,7 +3,9 @@ package com.jongwook.dshub.ui.screens
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,12 +18,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -59,6 +64,7 @@ fun DetailScreen(
 ) {
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var stageMenuExpanded by remember { mutableStateOf(false) }
     val stage = Stage.fromDisplayName(entry.stage)
 
     if (showDeleteDialog) {
@@ -141,7 +147,61 @@ fun DetailScreen(
                             }
                             Text("진행 상태", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        StageBadge(stage = stage)
+                        // 배지를 탭하면 수정 화면을 거치지 않고 진행단계를 바로 변경
+                        Box {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.clickable { stageMenuExpanded = true }
+                            ) {
+                                StageBadge(stage = stage)
+                                Icon(
+                                    Icons.Default.ArrowDropDown,
+                                    contentDescription = "진행단계 변경",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = stageMenuExpanded,
+                                onDismissRequest = { stageMenuExpanded = false }
+                            ) {
+                                Stage.entries.forEach { s ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    s.icon, null,
+                                                    tint = s.color,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Text(
+                                                    s.displayName,
+                                                    fontWeight = if (s.displayName == entry.stage)
+                                                        FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (s.displayName == entry.stage)
+                                                        s.color else MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
+                                        },
+                                        onClick = {
+                                            stageMenuExpanded = false
+                                            if (s.displayName != entry.stage) {
+                                                viewModel.updateEntry(entry.copy(stage = s.displayName)) {
+                                                    Toast.makeText(
+                                                        context,
+                                                        "진행단계 변경: ${s.displayName}",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 

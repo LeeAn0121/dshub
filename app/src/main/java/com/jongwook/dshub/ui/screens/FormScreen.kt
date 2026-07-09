@@ -3,6 +3,7 @@ package com.jongwook.dshub.ui.screens
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.unit.sp
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -23,7 +25,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
@@ -79,6 +83,7 @@ fun FormScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val error by viewModel.error.collectAsState()
+    val isSaving by viewModel.isLoading.collectAsState()
     var submitted by remember { mutableStateOf(false) }   // 제출 시도 여부 (필수값 표시 트리거)
 
     LaunchedEffect(error) {
@@ -88,17 +93,55 @@ fun FormScreen(
         }
     }
 
-    var registrationDate by remember { mutableStateOf(initialEntry?.registrationDate ?: dateFormatter.format(Date())) }
-    var stage by remember { mutableStateOf(initialEntry?.stage ?: Stage.RECEIVED.displayName) }
-    var requestDate by remember { mutableStateOf(initialEntry?.requestDate ?: "") }
-    var scheduledDate by remember { mutableStateOf(initialEntry?.scheduledDate ?: "") }
-    var completionDate by remember { mutableStateOf(initialEntry?.completionDate ?: "") }
-    var category by remember { mutableStateOf(initialEntry?.category ?: Category.TECH_SUPPORT.displayName) }
-    var siteName by remember { mutableStateOf(initialEntry?.siteName ?: "") }
-    var assignee by remember { mutableStateOf(initialEntry?.assignee ?: "") }
-    var requestDetails by remember { mutableStateOf(initialEntry?.requestDetails ?: "") }
-    var processDetails by remember { mutableStateOf(initialEntry?.processDetails ?: "") }
-    var notes by remember { mutableStateOf(initialEntry?.notes ?: "") }
+    // 이탈 경고 비교 기준이 되는 초기 스냅샷
+    val initial = remember {
+        initialEntry ?: TechSupport(registrationDate = dateFormatter.format(Date()))
+    }
+    var registrationDate by remember { mutableStateOf(initial.registrationDate) }
+    var stage by remember { mutableStateOf(initial.stage) }
+    var requestDate by remember { mutableStateOf(initial.requestDate) }
+    var scheduledDate by remember { mutableStateOf(initial.scheduledDate) }
+    var completionDate by remember { mutableStateOf(initial.completionDate) }
+    var category by remember { mutableStateOf(initial.category) }
+    var siteName by remember { mutableStateOf(initial.siteName) }
+    var assignee by remember { mutableStateOf(initial.assignee) }
+    var requestDetails by remember { mutableStateOf(initial.requestDetails) }
+    var processDetails by remember { mutableStateOf(initial.processDetails) }
+    var notes by remember { mutableStateOf(initial.notes) }
+
+    val hasChanges = registrationDate != initial.registrationDate ||
+        stage != initial.stage ||
+        requestDate != initial.requestDate ||
+        scheduledDate != initial.scheduledDate ||
+        completionDate != initial.completionDate ||
+        category != initial.category ||
+        siteName != initial.siteName ||
+        assignee != initial.assignee ||
+        requestDetails != initial.requestDetails ||
+        processDetails != initial.processDetails ||
+        notes != initial.notes
+
+    var showExitDialog by remember { mutableStateOf(false) }
+    val handleBack: () -> Unit = {
+        if (hasChanges) showExitDialog = true else onNavigateBack()
+    }
+    BackHandler(enabled = hasChanges) { showExitDialog = true }
+
+    if (showExitDialog) {
+        AlertDialog(
+            onDismissRequest = { showExitDialog = false },
+            title = { Text("작성 중인 내용이 있습니다") },
+            text = { Text("저장하지 않은 내용은 사라집니다. 나가시겠습니까?") },
+            confirmButton = {
+                TextButton(
+                    onClick = { showExitDialog = false; onNavigateBack() }
+                ) { Text("나가기", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitDialog = false }) { Text("계속 작성") }
+            }
+        )
+    }
 
     var showRegistrationDatePicker by remember { mutableStateOf(false) }
     var showRequestDatePicker by remember { mutableStateOf(false) }
@@ -140,7 +183,7 @@ fun FormScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = handleBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로")
                     }
                 },
@@ -336,14 +379,29 @@ fun FormScreen(
                         }
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isSaving   // 저장 중 중복 제출 방지
             ) {
-                Text(
-                    text = if (isEdit) "수정 저장" else "등록하기",
-                    modifier = Modifier.padding(vertical = 4.dp),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                if (isSaving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "저장 중...",
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                } else {
+                    Text(
+                        text = if (isEdit) "수정 저장" else "등록하기",
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
